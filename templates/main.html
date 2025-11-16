@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Gestor de Información</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <h1>UNIVERSIDAD NACIONAL DE LOJA</h1>
+    <p>Carrera de computación</p>
+  </header>
+
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">Computación Aplicada</div>
+        <div class="sidebar-pill"></div>
+      </div>
+
+      <nav class="sidebar-menu">
+        <p class="sidebar-section-title">Principal</p>
+        <button class="sidebar-item active" data-section="dashboard">
+          <span class="sidebar-icon">🏠</span>
+          <span class="sidebar-label">Dashboard</span>
+        </button>
+
+        <button class="sidebar-item" data-section="files">
+          <span class="sidebar-icon">📁</span>
+          <span class="sidebar-label">Mis Archivos</span>
+        </button>
+
+        <button class="sidebar-item" data-section="upload">
+          <span class="sidebar-icon">⬆️</span>
+          <span class="sidebar-label">Subir Documentos</span>
+        </button>
+
+        <button class="sidebar-item disabled">
+          <span class="sidebar-icon">🔍</span>
+          <span class="sidebar-label">Búsqueda Avanzada</span>
+          <span class="sidebar-badge">Próximamente</span>
+        </button>
+
+        <p class="sidebar-section-title">Herramientas</p>
+        <button class="sidebar-item disabled">
+          <span class="sidebar-icon">🧠</span>
+          <span class="sidebar-label">Asistente de Voz</span>
+          <span class="sidebar-badge new">NEW</span>
+        </button>
+
+        <button class="sidebar-item" data-section="faq">
+          <span class="sidebar-icon">❓</span>
+          <span class="sidebar-label">Preguntas Frecuentes</span>
+        </button>
+
+        <p class="sidebar-section-title">Sistema</p>
+        <button class="sidebar-item disabled">
+          <span class="sidebar-icon">⚙️</span>
+          <span class="sidebar-label">Configuración</span>
+        </button>
+        <button class="sidebar-item disabled">
+          <span class="sidebar-icon">💬</span>
+          <span class="sidebar-label">Ayuda</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">{{ username[:1] | upper }}</div>
+        <div class="sidebar-user-info">
+          <span class="sidebar-user-name">{{ username }}</span>
+          <span class="sidebar-user-role">Administrador</span>
+        </div>
+        <a href="{{ url_for('logout') }}" class="sidebar-logout">Cerrar sesión</a>
+      </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="content">
+      <!-- DASHBOARD -->
+      <section id="section-dashboard" class="card section active">
+        <h2>Bienvenido al Dashboard 👋</h2>
+        <p style="margin-top:0.5rem; color:#94a3b8; font-size:0.9rem;">
+          Desde aquí podrás gestionar los documentos que alimentan tu asistente de voz y otras herramientas.
+        </p>
+
+        <ul style="margin-top:1rem; font-size:0.9rem; color:#e2e8f0;">
+          <li><strong>Mis Archivos:</strong> revisa y elimina los PDFs ya cargados.</li>
+          <li><strong>Subir Documentos:</strong> arrastra nuevos PDFs para que se indexen en la base de conocimiento.</li>
+          <li><strong>Integración RAG:</strong> los documentos se procesan y se almacenan en ChromaDB para ser usados por tu asistente.</li>
+        </ul>
+      </section>
+
+      <!-- PREGUNTAS FRECUENTES / HISTORIAL -->
+      <section id="section-faq" class="card section">
+        <h2>Preguntas Frecuentes</h2>
+        <p style="margin-top:0.4rem; color:#94a3b8; font-size:0.85rem;">
+          Historial de consultas realizadas al asistente. Se registra la pregunta y la fecha en que fue enviada.
+        </p>
+
+        {% if preguntas %}
+          <div style="margin-top:1rem; max-height:420px; overflow:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+              <thead>
+                <tr style="border-bottom:1px solid rgba(148,163,184,0.35);">
+                  <th style="text-align:left; padding:0.4rem 0.3rem; white-space:nowrap;">Fecha</th>
+                  <th style="text-align:left; padding:0.4rem 0.3rem;">Pregunta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in preguntas %}
+                  <tr style="border-bottom:1px solid rgba(30,41,59,0.6);">
+                    <td style="padding:0.35rem 0.3rem; color:#94a3b8; font-size:0.8rem; white-space:nowrap;">
+                      {{ p.fecha_creacion }}
+                    </td>
+                    <td style="padding:0.35rem 0.3rem; color:#e2e8f0;">
+                      {{ p.texto }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty">
+            <div class="empty-icon">❓</div>
+            <p>Aún no hay preguntas registradas.</p>
+            <p class="muted">Cuando el asistente reciba consultas, aparecerán aquí.</p>
+          </div>
+        {% endif %}
+      </section>
+
+      <!-- SUBIR DOCUMENTOS -->
+      <section id="section-upload" class="card section">
+        <h2>Subir Archivos</h2>
+        <div id="dropzone" class="dropzone">
+          <div class="icon">📄</div>
+          <p>Arrastra archivos PDF aquí</p>
+          <button id="btnSelect" class="btn-primary">Seleccionar archivos</button>
+          <input type="file" id="fileInput" accept="application/pdf" style="display:none">
+        </div>
+        <div class="stats">
+          <p><strong>Total de archivos:</strong> {{ files|length }}</p>
+          <p><strong>Tamaño total:</strong> {{ '%.2f' % (total_size / (1024*1024)) }} MB</p>
+        </div>
+      </section>
+
+      <!-- MIS ARCHIVOS -->
+      <section id="section-files" class="card section">
+        <h2>Archivos Subidos</h2>
+        {% if files %}
+          <ul class="file-list" id="fileList">
+            {% for f in files %}
+            <li data-name="{{ f }}">
+              <span class="file-icon">📄</span>
+              <a href="{{ url_for('serve_file', filename=f) }}" target="_blank">{{ f }}</a>
+              <button class="btn-delete" data-name="{{ f }}">Eliminar</button>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty">
+            <div class="empty-icon">📄</div>
+            <p>No hay archivos subidos</p>
+            <p class="muted">Sube algunos archivos para comenzar</p>
+          </div>
+        {% endif %}
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // ====== NAV LATERAL (cambiar secciones) ======
+    const sidebarItems = document.querySelectorAll('.sidebar-item:not(.disabled)');
+    const sections = document.querySelectorAll('.section');
+
+    sidebarItems.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-section');
+        if (!target) return;
+
+        // marcar activo en menú
+        sidebarItems.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // mostrar sección correspondiente
+        sections.forEach(sec => {
+          if (sec.id === 'section-' + target) {
+            sec.style.display = 'block';
+          } else {
+            sec.style.display = 'none';
+          }
+        });
+      });
+    });
+
+    // mostrar solo la sección marcada con .active al inicio
+    sections.forEach(sec => {
+      if (sec.classList.contains('active')) {
+        sec.style.display = 'block';
+      } else {
+        sec.style.display = 'none';
+      }
+    });
+
+    // ====== TU LÓGICA DE SUBIDA / ELIMINACIÓN ======
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const btnSelect = document.getElementById('btnSelect');
+    const btnRebuild = document.getElementById('btnRebuild'); // por si lo usas
+    const fileList = document.getElementById('fileList');     // <ul id="fileList">...</ul>
+
+    if (btnSelect && fileInput) {
+      btnSelect.addEventListener('click', () => fileInput.click());
+
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          uploadFile(e.target.files[0]);
+        }
+      });
+    }
+
+    if (dropzone) {
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) uploadFile(file);
+      });
+    }
+
+    function uploadFile(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      fetch('/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          addFileToList(data.filename);
+        } else {
+          alert(data.msg || 'Error al subir');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert('Error de red');
+      });
+    }
+
+    // conectar botones eliminar ya existentes
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', handleDelete);
+    });
+
+    function handleDelete(e) {
+      const btn = e.target;
+      const name = btn.dataset.name;
+      if (!confirm('¿Eliminar "' + name + '"?')) return;
+
+      fetch('/delete/' + encodeURIComponent(name), {
+        method: 'DELETE'
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          const li = btn.closest('li');
+          li.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+          li.style.opacity = "0";
+          li.style.transform = "translateX(-6px)";
+          setTimeout(() => li.remove(), 250);
+        } else {
+          alert(data.msg || 'No se pudo eliminar');
+        }
+      });
+    }
+
+    function addFileToList(filename) {
+      if (!fileList) return;
+
+      const li = document.createElement('li');
+      li.dataset.name = filename;
+      li.innerHTML = `
+        <span class="file-icon">📄</span>
+        <a href="/files/${encodeURIComponent(filename)}" target="_blank">${filename}</a>
+        <button class="btn-delete" data-name="${filename}">Eliminar</button>
+      `;
+
+      fileList.appendChild(li);
+
+      li.style.opacity = "0";
+      li.style.transform = "translateY(-4px)";
+      setTimeout(() => {
+        li.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+        li.style.opacity = "1";
+        li.style.transform = "translateY(0)";
+      }, 30);
+
+      li.querySelector('.btn-delete').addEventListener('click', handleDelete);
+    }
+
+    if (btnRebuild) {
+      btnRebuild.addEventListener('click', () => {
+        fetch('/rebuild', { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            if (data.ok) alert('Reprocesado correctamente.');
+          });
+      });
+    }
+  </script>
+</body>
+</html>

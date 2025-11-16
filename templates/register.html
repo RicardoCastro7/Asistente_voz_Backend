@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Registro | Gestor de PDFs</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Gestor de PDFs</h1>
+    <p>Crea tu cuenta para comenzar</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Registro</h2>
+
+      {% if error %}
+        <p style="color:#fecaca; background:rgba(127,29,29,0.3); padding:0.5rem 0.8rem; border-radius:0.5rem; font-size:0.85rem;">
+          {{ error }}
+        </p>
+      {% endif %}
+
+      <form method="POST" style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.8rem;">
+        <div>
+          <label for="username" style="font-size:0.85rem;">Usuario</label><br>
+          <input type="text" id="username" name="username" required
+                 style="width:100%; margin-top:0.2rem; padding:0.45rem 0.6rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:rgba(15,23,42,0.7); color:#e2e8f0;">
+        </div>
+        <div>
+          <label for="email" style="font-size:0.85rem;">Correo</label><br>
+          <input type="email" id="email" name="email" required
+                 style="width:100%; margin-top:0.2rem; padding:0.45rem 0.6rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:rgba(15,23,42,0.7); color:#e2e8f0;">
+        </div>
+        <div>
+          <label for="password" style="font-size:0.85rem;">Contraseña</label><br>
+          <input type="password" id="password" name="password" required
+                 style="width:100%; margin-top:0.2rem; padding:0.45rem 0.6rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:rgba(15,23,42,0.7); color:#e2e8f0;">
+        </div>
+        <div>
+          <label for="confirm" style="font-size:0.85rem;">Confirmar contraseña</label><br>
+          <input type="password" id="confirm" name="confirm" required
+                 style="width:100%; margin-top:0.2rem; padding:0.45rem 0.6rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:rgba(15,23,42,0.7); color:#e2e8f0;">
+        </div>
+
+        <button type="submit" class="btn-primary" style="align-self:flex-start; margin-top:0.4rem;">
+          Registrarme
+        </button>
+      </form>
+
+      <p style="margin-top:1rem; font-size:0.8rem; color:#94a3b8;">
+        ¿Ya tienes cuenta?
+        <a href="{{ url_for('login') }}">Inicia sesión aquí</a>
+      </p>
+    </section>
+  </main>
+</body>
+</html>
