@@ -56,7 +56,7 @@
         </button>
 
         <p class="sidebar-section-title">Sistema</p>
-        <button class="sidebar-item disabled">
+        <button class="sidebar-item" data-section="config">
           <span class="sidebar-icon">⚙️</span>
           <span class="sidebar-label">Configuración</span>
         </button>
@@ -132,19 +132,20 @@
       </section>
 
       <!-- SUBIR DOCUMENTOS -->
-      <section id="section-upload" class="card section">
-        <h2>Subir Archivos</h2>
-        <div id="dropzone" class="dropzone">
-          <div class="icon">📄</div>
-          <p>Arrastra archivos PDF aquí</p>
-          <button id="btnSelect" class="btn-primary">Seleccionar archivos</button>
-          <input type="file" id="fileInput" accept="application/pdf" style="display:none">
-        </div>
-        <div class="stats">
-          <p><strong>Total de archivos:</strong> {{ files|length }}</p>
-          <p><strong>Tamaño total:</strong> {{ '%.2f' % (total_size / (1024*1024)) }} MB</p>
-        </div>
-      </section>
+        <section id="section-upload" class="card section">
+          <h2>Subir Archivos</h2>
+          <div id="dropzone" class="dropzone">
+            <div class="icon">📄</div>
+            <p>Arrastra archivos PDF aquí</p>
+            <button id="btnSelect" class="btn-primary">Seleccionar archivos</button>
+            <input type="file" id="fileInput" accept="application/pdf" style="display:none">
+          </div>
+
+          <div class="stats">
+            <p><strong>Total de archivos:</strong> {{ files|length }}</p>
+            <p><strong>Tamaño total:</strong> {{ '%.2f' % (total_size / (1024*1024)) }} MB</p>
+          </div>
+        </section>
 
       <!-- MIS ARCHIVOS -->
       <section id="section-files" class="card section">
@@ -167,9 +168,138 @@
           </div>
         {% endif %}
       </section>
+      <!-- CONFIGURACIÓN: GESTIÓN DE PROMPTS -->
+      <section id="section-config" class="card section">
+        <h2>Configuración del asistente</h2>
+        <p style="margin-top:0.4rem; color:#94a3b8; font-size:0.85rem;">
+          Aquí puedes gestionar los <strong>prompts</strong> del asistente: crear nuevos, editarlos,
+          eliminarlos y elegir cuál estará activo.
+        </p>
+
+        <!-- Crear nuevo prompt -->
+        <div style="margin-top:1rem; padding:1rem; border-radius:0.75rem; background:rgba(15,23,42,0.8);">
+          <h3 style="margin-top:0; font-size:1rem;">Crear nuevo prompt</h3>
+
+          <form method="post" action="{{ url_for('create_prompt') }}">
+            <div style="margin-bottom:0.5rem;">
+              <label style="display:block; font-size:0.85rem; color:#94a3b8; margin-bottom:0.2rem;">
+                Nombre del prompt
+              </label>
+              <input type="text" name="nombre" required
+                     style="width:100%; padding:0.45rem 0.6rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.9rem;">
+            </div>
+
+            <div style="margin-bottom:0.5rem;">
+              <label style="display:block; font-size:0.85rem; color:#94a3b8; margin-bottom:0.2rem;">
+                Contenido del prompt
+              </label>
+              <textarea name="contenido" rows="7" required
+                        style="width:100%; padding:0.6rem 0.7rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.9rem; resize:vertical;"></textarea>
+            </div>
+
+            <label style="font-size:0.85rem; color:#94a3b8;">
+              <input type="checkbox" name="activar" style="margin-right:0.3rem;">
+              Establecer como prompt activo
+            </label>
+
+            <div style="margin-top:0.7rem;">
+              <button type="submit" class="btn-primary">
+                Guardar prompt
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Lista de prompts existentes -->
+        <h3 style="margin-top:1.4rem; font-size:1rem;">Prompts configurados</h3>
+
+        {% if prompts %}
+          <div style="margin-top:0.5rem; max-height:360px; overflow:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+              <thead>
+                <tr style="border-bottom:1px solid rgba(148,163,184,0.35);">
+                  <th style="text-align:left; padding:0.4rem 0.3rem;">Nombre</th>
+                  <th style="text-align:left; padding:0.4rem 0.3rem; width:45%;">Contenido</th>
+                  <th style="text-align:left; padding:0.4rem 0.3rem;">Estado</th>
+                  <th style="text-align:left; padding:0.4rem 0.3rem;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for pr in prompts %}
+                  <tr style="border-bottom:1px solid rgba(30,41,59,0.6); vertical-align:top;">
+                    <td style="padding:0.35rem 0.3rem; color:#e2e8f0;">
+                      {{ pr.nombre }}
+                      <div style="font-size:0.75rem; color:#64748b;">
+                        {{ pr.created_at }}
+                      </div>
+                    </td>
+                    <td style="padding:0.35rem 0.3rem; color:#cbd5f5; font-size:0.85rem; white-space:pre-wrap;">
+                      {{ pr.contenido[:260] }}{% if pr.contenido|length > 260 %}...{% endif %}
+                    </td>
+                    <td style="padding:0.35rem 0.3rem;">
+                      {% if pr.is_active %}
+                        <span style="font-size:0.8rem; padding:0.15rem 0.55rem; border-radius:999px; background:rgba(34,197,94,0.15); color:#4ade80;">
+                          Activo
+                        </span>
+                      {% else %}
+                        <span style="font-size:0.8rem; padding:0.15rem 0.55rem; border-radius:999px; background:rgba(148,163,184,0.15); color:#94a3b8;">
+                          Inactivo
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td style="padding:0.35rem 0.3rem;">
+                      <!-- Activar -->
+                      {% if not pr.is_active %}
+                        <form method="post" action="{{ url_for('activate_prompt', prompt_id=pr.id) }}" style="display:inline;">
+                          <button type="submit" class="btn-secondary" style="margin-bottom:0.3rem;">
+                            Usar este
+                          </button>
+                        </form>
+                      {% endif %}
+
+                      <!-- Editar (form inline) -->
+                      <details style="margin-top:0.2rem;">
+                        <summary style="cursor:pointer; font-size:0.8rem; color:#a5b4fc;">Editar</summary>
+                        <div style="margin-top:0.4rem;">
+                          <form method="post" action="{{ url_for('update_prompt', prompt_id=pr.id) }}">
+                            <input type="text" name="nombre" value="{{ pr.nombre }}" required
+                                   style="width:100%; padding:0.35rem 0.5rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.85rem; margin-bottom:0.35rem;">
+                            <textarea name="contenido" rows="5" required
+                                      style="width:100%; padding:0.45rem 0.6rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.85rem; resize:vertical;">{{ pr.contenido }}</textarea>
+                            <div style="margin-top:0.4rem;">
+                              <button type="submit" class="btn-primary" style="font-size:0.8rem;">
+                                Guardar cambios
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </details>
+
+                      <!-- Eliminar -->
+                      <form method="post"
+                            action="{{ url_for('delete_prompt', prompt_id=pr.id) }}"
+                            class="form-delete-prompt"
+                            style="display:inline-block; margin-top:0.3rem;">
+                        <button type="submit"
+                                style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:0.4rem; padding:0.2rem 0.6rem; font-size:0.8rem; cursor:pointer;">
+                          Eliminar
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p style="margin-top:0.8rem; color:#94a3b8; font-size:0.9rem;">
+            Aún no tienes prompts definidos. Crea uno nuevo en el formulario superior.
+          </p>
+        {% endif %}
+      </section>
     </main>
   </div>
-
+  <div id="toast" class="toast"></div>
   <script>
     // ====== NAV LATERAL (cambiar secciones) ======
     const sidebarItems = document.querySelectorAll('.sidebar-item:not(.disabled)');
@@ -317,6 +447,25 @@
           });
       });
     }
-  </script>
+
+
+        // Confirmar eliminación de prompt
+    document.querySelectorAll('.form-delete-prompt').forEach(form => {
+      form.addEventListener('submit', (e) => {
+        if (!confirm('¿Seguro que deseas eliminar este prompt?')) {
+          e.preventDefault();
+        }
+      });
+    });
+    function showToast(message, type = "ok") {
+  if (!toast) return;
+  toast.textContent = message;
+  toast.className = "toast " + type + " show";
+  setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2500);
+}
+
+</script>
 </body>
 </html>

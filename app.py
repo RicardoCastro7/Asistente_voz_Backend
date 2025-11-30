@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 
-from logica.pdf_service import (
+from pdf_service import (
     DATA_PATH,
     process_all_pdfs,
     clear_database,
@@ -63,6 +63,34 @@ DB_CONFIG = {
 
 def get_db():
     return mysql.connector.connect(**DB_CONFIG)
+
+
+def get_active_prompt_text() -> str:
+    """
+    Devuelve el contenido del prompt activo desde la tabla `prompts`.
+    Si no hay ninguno, lanza una excepción.
+    """
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("""
+            SELECT contenido
+            FROM prompts
+            WHERE is_active = 1
+            ORDER BY id DESC
+            LIMIT 1
+        """)
+        row = cur.fetchone()
+        if not row:
+            raise RuntimeError("No hay ningún prompt activo en la tabla 'prompts'.")
+        return row["contenido"]
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 # =============== MIDDLEWARE: PROTEGER RUTAS ===============
@@ -238,12 +266,34 @@ def index():
         except Exception:
             pass
 
+    # Prompts (para Configuración)
+    prompts = []
+    try:
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("""
+            SELECT id, nombre, contenido, is_active, created_at
+            FROM prompts
+            ORDER BY created_at DESC
+        """)
+        prompts = cur.fetchall()
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
+
     return render_template(
         "main.html",
         files=files,
         total_size=total_size,
         username=username,
-        preguntas=preguntas,  # 🔹 se envía al template
+        preguntas=preguntas,
+        prompts=prompts,    # 👈 se usa en Configuración
     )
 
 
@@ -283,14 +333,125 @@ def delete_file(filename):
 
 @app.route("/rebuild", methods=["POST"])
 def rebuild():
-    clear_database()
-    process_all_pdfs()
-    return jsonify({"ok": True})
+    try:
+        from pdf_service import clear_database, process_all_pdfs
+
+        clear_database()
+        process_all_pdfs()
+
+        return jsonify({"ok": True, "msg": "La base de datos fue reconstruida."})
+
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)})
 
 
 @app.route("/files/<filename>")
 def serve_file(filename):
     return send_from_directory(DATA_PATH, filename)
+
+
+# =============== RUTAS PARA GESTIONAR PROMPTS ===============
+
+@app.route("/prompts/create", methods=["POST"])
+def create_prompt():
+    nombre = (request.form.get("nombre") or "").strip()
+    contenido = (request.form.get("contenido") or "").strip()
+    activar = request.form.get("activar")  # checkbox "on" o None
+
+    if not nombre or not contenido:
+        # podrías usar flash si activas mensajes
+        return redirect(url_for("index"))  # vuelve al dashboard
+
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        # si se marca "activar", desactivar todos los demás
+        if activar:
+            cur.execute("UPDATE prompts SET is_active = 0")
+
+        cur.execute(
+            "INSERT INTO prompts (nombre, contenido, is_active) VALUES (%s, %s, %s)",
+            (nombre, contenido, 1 if activar else 0)
+        )
+        conn.commit()
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+    return redirect(url_for("index"))
+
+
+@app.route("/prompts/<int:prompt_id>/activate", methods=["POST"])
+def activate_prompt(prompt_id):
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        # desactivar todos
+        cur.execute("UPDATE prompts SET is_active = 0")
+        # activar el seleccionado
+        cur.execute("UPDATE prompts SET is_active = 1 WHERE id = %s", (prompt_id,))
+        conn.commit()
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+    return redirect(url_for("index"))
+
+
+@app.route("/prompts/<int:prompt_id>/update", methods=["POST"])
+def update_prompt(prompt_id):
+    nombre = (request.form.get("nombre") or "").strip()
+    contenido = (request.form.get("contenido") or "").strip()
+
+    if not nombre or not contenido:
+        return redirect(url_for("index"))
+
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE prompts SET nombre = %s, contenido = %s WHERE id = %s",
+            (nombre, contenido, prompt_id)
+        )
+        conn.commit()
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+    return redirect(url_for("index"))
+
+
+@app.route("/prompts/<int:prompt_id>/delete", methods=["POST"])
+def delete_prompt(prompt_id):
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM prompts WHERE id = %s", (prompt_id,))
+        conn.commit()
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+    return redirect(url_for("index"))
+
+
 
 
 # ================== RUTAS RAG (GEMINI) ==================
@@ -339,9 +500,10 @@ def rag_endpoint():
         except Exception:
             pass
 
-    # ✅ Procesar con Gemini como siempre
+    # ✅ Procesar con Gemini usando el prompt de la BD
     try:
-        respuesta = ask_gemini(pregunta)
+        prompt_template = get_active_prompt_text()   # 👈 viene de MySQL
+        respuesta = ask_gemini(pregunta, prompt_template=prompt_template)
         return jsonify({"pregunta": pregunta, "respuesta": respuesta})
     except Exception as e:
         app.logger.exception("Error en /rag")
