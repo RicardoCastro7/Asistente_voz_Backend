@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 
 from flask import (
     Flask, render_template, request, jsonify,
-    send_from_directory, redirect, url_for, session
+    send_from_directory, redirect, url_for, session, abort
 )
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -153,12 +153,13 @@ def register():
                 return render_template("register.html", error="El usuario o email ya están registrados.")
 
             # Guardar el HASH en la columna password
+            # Nuevos usuarios: inactivos y rol 'user'
             cur.execute(
                 """
-                INSERT INTO users (username, email, password)
-                VALUES (%s, %s, %s)
+                INSERT INTO users (username, email, password, is_active, role)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
-                (username, email, password_hash)
+                (username, email, password_hash, 0, "user")
             )
             conn.commit()
         finally:
@@ -191,7 +192,7 @@ def login():
             # Permitir login con username O email
             cur.execute(
                 """
-                SELECT id, username, email, password, is_active
+                SELECT id, username, email, password, is_active, role
                 FROM users
                 WHERE username = %s OR email = %s
                 """,
@@ -212,7 +213,10 @@ def login():
             return render_template("login.html", error="Usuario no encontrado.")
 
         if not user["is_active"]:
-            return render_template("login.html", error="Usuario inactivo, contacte al administrador.")
+            return render_template(
+                "login.html",
+                error="Tu cuenta está pendiente de aprobación por el administrador. Intenta más tarde."
+            )
 
         if not check_password_hash(user["password"], password):
             return render_template("login.html", error="Contraseña incorrecta.")
@@ -220,6 +224,7 @@ def login():
         # Guardar sesión
         session["user_id"] = user["id"]
         session["username"] = user["username"]
+        session["role"] = user.get("role", "user")
 
         return redirect(url_for("index"))
 
@@ -241,6 +246,8 @@ def index():
     files = [f for f in files if f.lower().endswith(".pdf")]
     total_size = sum(os.path.getsize(os.path.join(DATA_PATH, f)) for f in files)
     username = session.get("username", "Usuario")
+    role = session.get("role", "user")
+    es_admin = role == "admin"
 
     # ✅ OBTENER PREGUNTAS PARA "PREGUNTAS FRECUENTES"
     preguntas = []
@@ -287,13 +294,38 @@ def index():
         except Exception:
             pass
 
+    # 🧑‍💼 Usuarios pendientes (solo para admin)
+    pending_users = []
+    if es_admin:
+        try:
+            conn = get_db()
+            cur = conn.cursor(dictionary=True)
+            cur.execute("""
+                SELECT id, username, email, created_at, is_active, role
+                FROM users
+                WHERE is_active = 0
+                ORDER BY created_at ASC
+            """)
+            pending_users = cur.fetchall()
+        finally:
+            try:
+                cur.close()
+            except Exception:
+                pass
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     return render_template(
         "main.html",
         files=files,
         total_size=total_size,
         username=username,
         preguntas=preguntas,
-        prompts=prompts,    # 👈 se usa en Configuración
+        prompts=prompts,        # Configuración
+        es_admin=es_admin,      # para que el template sepa si mostrar cosas
+        pending_users=pending_users  # lista de usuarios por aprobar
     )
 
 
@@ -350,6 +382,63 @@ def serve_file(filename):
     return send_from_directory(DATA_PATH, filename)
 
 
+# =============== RUTAS PARA GESTIONAR USUARIOS (SOLO ADMIN) ===============
+
+def _require_admin():
+    if session.get("role") != "admin":
+        abort(403)
+
+
+@app.route("/users/<int:user_id>/approve", methods=["POST"])
+def approve_user(user_id):
+    _require_admin()
+
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        # evitar que el admin se desactive a sí mismo por error (no aplica aquí,
+        # pero por si extiendes la lógica luego)
+        cur.execute(
+            "UPDATE users SET is_active = 1 WHERE id = %s",
+            (user_id,)
+        )
+        conn.commit()
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+    return redirect(url_for("index"))
+
+
+@app.route("/users/<int:user_id>/reject", methods=["POST"])
+def reject_user(user_id):
+    _require_admin()
+
+    # por seguridad, no permitir que el admin se borre a sí mismo desde aquí
+    if user_id == session.get("user_id"):
+        abort(400)
+
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        conn.commit()
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+    return redirect(url_for("index"))
+
+
 # =============== RUTAS PARA GESTIONAR PROMPTS ===============
 
 @app.route("/prompts/create", methods=["POST"])
@@ -359,7 +448,6 @@ def create_prompt():
     activar = request.form.get("activar")  # checkbox "on" o None
 
     if not nombre or not contenido:
-        # podrías usar flash si activas mensajes
         return redirect(url_for("index"))  # vuelve al dashboard
 
     conn = None
@@ -450,8 +538,6 @@ def delete_prompt(prompt_id):
             conn.close()
 
     return redirect(url_for("index"))
-
-
 
 
 # ================== RUTAS RAG (GEMINI) ==================

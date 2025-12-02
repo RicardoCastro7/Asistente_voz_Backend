@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="es">
+  
 <head>
   <meta charset="utf-8" />
   <title>Gestor de Información</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
   <header class="topbar">
     <h1>UNIVERSIDAD NACIONAL DE LOJA</h1>
@@ -44,10 +46,9 @@
         </button>
 
         <p class="sidebar-section-title">Herramientas</p>
-        <button class="sidebar-item disabled">
+        <button class="sidebar-item" data-section="voice">
           <span class="sidebar-icon">🧠</span>
           <span class="sidebar-label">Asistente de Voz</span>
-          <span class="sidebar-badge new">NEW</span>
         </button>
 
         <button class="sidebar-item" data-section="faq">
@@ -64,6 +65,14 @@
           <span class="sidebar-icon">💬</span>
           <span class="sidebar-label">Ayuda</span>
         </button>
+
+        {% if es_admin %}
+        <p class="sidebar-section-title">Administración</p>
+        <button class="sidebar-item" data-section="users">
+          <span class="sidebar-icon">🧑‍💻</span>
+          <span class="sidebar-label">Gestión de usuarios</span>
+        </button>
+        {% endif %}
       </nav>
 
       <div class="sidebar-user">
@@ -87,8 +96,10 @@
 
         <ul style="margin-top:1rem; font-size:0.9rem; color:#e2e8f0;">
           <li><strong>Mis Archivos:</strong> revisa y elimina los PDFs ya cargados.</li>
-          <li><strong>Subir Documentos:</strong> arrastra nuevos PDFs para que se indexen en la base de conocimiento.</li>
-          <li><strong>Integración RAG:</strong> los documentos se procesan y se almacenan en ChromaDB para ser usados por tu asistente.</li>
+          <li><strong>Subir Documentos:</strong> arrastra nuevos PDFs para que se indexen en la base de conocimiento.
+          </li>
+          <li><strong>Integración RAG:</strong> los documentos se procesan y se almacenan en ChromaDB para ser usados
+            por tu asistente.</li>
         </ul>
       </section>
 
@@ -100,72 +111,72 @@
         </p>
 
         {% if preguntas %}
-          <div style="margin-top:1rem; max-height:420px; overflow:auto;">
-            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
-              <thead>
-                <tr style="border-bottom:1px solid rgba(148,163,184,0.35);">
-                  <th style="text-align:left; padding:0.4rem 0.3rem; white-space:nowrap;">Fecha</th>
-                  <th style="text-align:left; padding:0.4rem 0.3rem;">Pregunta</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for p in preguntas %}
-                  <tr style="border-bottom:1px solid rgba(30,41,59,0.6);">
-                    <td style="padding:0.35rem 0.3rem; color:#94a3b8; font-size:0.8rem; white-space:nowrap;">
-                      {{ p.fecha_creacion }}
-                    </td>
-                    <td style="padding:0.35rem 0.3rem; color:#e2e8f0;">
-                      {{ p.texto }}
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+        <div style="margin-top:1rem; max-height:420px; overflow:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+            <thead>
+              <tr style="border-bottom:1px solid rgba(148,163,184,0.35);">
+                <th style="text-align:left; padding:0.4rem 0.3rem; white-space:nowrap;">Fecha</th>
+                <th style="text-align:left; padding:0.4rem 0.3rem;">Pregunta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in preguntas %}
+              <tr style="border-bottom:1px solid rgba(30,41,59,0.6);">
+                <td style="padding:0.35rem 0.3rem; color:#94a3b8; font-size:0.8rem; white-space:nowrap;">
+                  {{ p.fecha_creacion }}
+                </td>
+                <td style="padding:0.35rem 0.3rem; color:#e2e8f0;">
+                  {{ p.texto }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
         {% else %}
-          <div class="empty">
-            <div class="empty-icon">❓</div>
-            <p>Aún no hay preguntas registradas.</p>
-            <p class="muted">Cuando el asistente reciba consultas, aparecerán aquí.</p>
-          </div>
+        <div class="empty">
+          <div class="empty-icon">❓</div>
+          <p>Aún no hay preguntas registradas.</p>
+          <p class="muted">Cuando el asistente reciba consultas, aparecerán aquí.</p>
+        </div>
         {% endif %}
       </section>
 
       <!-- SUBIR DOCUMENTOS -->
-        <section id="section-upload" class="card section">
-          <h2>Subir Archivos</h2>
-          <div id="dropzone" class="dropzone">
-            <div class="icon">📄</div>
-            <p>Arrastra archivos PDF aquí</p>
-            <button id="btnSelect" class="btn-primary">Seleccionar archivos</button>
-            <input type="file" id="fileInput" accept="application/pdf" style="display:none">
-          </div>
+      <section id="section-upload" class="card section">
+        <h2>Subir Archivos</h2>
+        <div id="dropzone" class="dropzone">
+          <div class="icon">📄</div>
+          <p>Arrastra archivos PDF aquí</p>
+          <button id="btnSelect" class="btn-primary">Seleccionar archivos</button>
+          <input type="file" id="fileInput" accept="application/pdf" style="display:none">
+        </div>
 
-          <div class="stats">
-            <p><strong>Total de archivos:</strong> {{ files|length }}</p>
-            <p><strong>Tamaño total:</strong> {{ '%.2f' % (total_size / (1024*1024)) }} MB</p>
-          </div>
-        </section>
+        <div class="stats">
+          <p><strong>Total de archivos:</strong> {{ files|length }}</p>
+          <p><strong>Tamaño total:</strong> {{ '%.2f' % (total_size / (1024*1024)) }} MB</p>
+        </div>
+      </section>
 
       <!-- MIS ARCHIVOS -->
       <section id="section-files" class="card section">
         <h2>Archivos Subidos</h2>
         {% if files %}
-          <ul class="file-list" id="fileList">
-            {% for f in files %}
-            <li data-name="{{ f }}">
-              <span class="file-icon">📄</span>
-              <a href="{{ url_for('serve_file', filename=f) }}" target="_blank">{{ f }}</a>
-              <button class="btn-delete" data-name="{{ f }}">Eliminar</button>
-            </li>
-            {% endfor %}
-          </ul>
+        <ul class="file-list" id="fileList">
+          {% for f in files %}
+          <li data-name="{{ f }}">
+            <span class="file-icon">📄</span>
+            <a href="{{ url_for('serve_file', filename=f) }}" target="_blank">{{ f }}</a>
+            <button class="btn-delete" data-name="{{ f }}">Eliminar</button>
+          </li>
+          {% endfor %}
+        </ul>
         {% else %}
-          <div class="empty">
-            <div class="empty-icon">📄</div>
-            <p>No hay archivos subidos</p>
-            <p class="muted">Sube algunos archivos para comenzar</p>
-          </div>
+        <div class="empty">
+          <div class="empty-icon">📄</div>
+          <p>No hay archivos subidos</p>
+          <p class="muted">Sube algunos archivos para comenzar</p>
+        </div>
         {% endif %}
       </section>
       <!-- CONFIGURACIÓN: GESTIÓN DE PROMPTS -->
@@ -174,46 +185,46 @@
         <p style="margin-top:0.4rem; color:#94a3b8; font-size:0.85rem;">
           Aquí puedes gestionar los <strong>prompts</strong> del asistente: crear nuevos, editarlos,
           eliminarlos y elegir cuál estará activo.
-        </p>
-
-        <!-- Crear nuevo prompt -->
-        <div style="margin-top:1rem; padding:1rem; border-radius:0.75rem; background:rgba(15,23,42,0.8);">
-          <h3 style="margin-top:0; font-size:1rem;">Crear nuevo prompt</h3>
-
-          <form method="post" action="{{ url_for('create_prompt') }}">
-            <div style="margin-bottom:0.5rem;">
-              <label style="display:block; font-size:0.85rem; color:#94a3b8; margin-bottom:0.2rem;">
-                Nombre del prompt
+          </p>
+          
+          <!-- Crear nuevo prompt -->
+          <div style="margin-top:1rem; padding:1rem; border-radius:0.75rem; background:rgba(15,23,42,0.8);">
+            <h3 style="margin-top:0; font-size:1rem;">Crear nuevo prompt</h3>
+          
+            <form method="post" action="{{ url_for('create_prompt') }}">
+              <div style="margin-bottom:0.5rem;">
+                <label style="display:block; font-size:0.85rem; color:#94a3b8; margin-bottom:0.2rem;">
+                  Nombre del prompt
+                </label>
+                <input type="text" name="nombre" required
+                  style="width:100%; padding:0.45rem 0.6rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.9rem;">
+              </div>
+          
+              <div style="margin-bottom:0.5rem;">
+                <label style="display:block; font-size:0.85rem; color:#94a3b8; margin-bottom:0.2rem;">
+                  Contenido del prompt
+                </label>
+                <textarea name="contenido" rows="7" required
+                  style="width:100%; padding:0.6rem 0.7rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.9rem; resize:vertical;"></textarea>
+              </div>
+          
+              <label style="font-size:0.85rem; color:#94a3b8;">
+                <input type="checkbox" name="activar" style="margin-right:0.3rem;">
+                Establecer como prompt activo
               </label>
-              <input type="text" name="nombre" required
-                     style="width:100%; padding:0.45rem 0.6rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.9rem;">
-            </div>
-
-            <div style="margin-bottom:0.5rem;">
-              <label style="display:block; font-size:0.85rem; color:#94a3b8; margin-bottom:0.2rem;">
-                Contenido del prompt
-              </label>
-              <textarea name="contenido" rows="7" required
-                        style="width:100%; padding:0.6rem 0.7rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.9rem; resize:vertical;"></textarea>
-            </div>
-
-            <label style="font-size:0.85rem; color:#94a3b8;">
-              <input type="checkbox" name="activar" style="margin-right:0.3rem;">
-              Establecer como prompt activo
-            </label>
-
-            <div style="margin-top:0.7rem;">
-              <button type="submit" class="btn-primary">
-                Guardar prompt
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Lista de prompts existentes -->
-        <h3 style="margin-top:1.4rem; font-size:1rem;">Prompts configurados</h3>
-
-        {% if prompts %}
+          
+              <div style="margin-top:0.7rem;">
+                <button type="submit" class="btn-primary">
+                  Guardar prompt
+                </button>
+              </div>
+            </form>
+          </div>
+          
+          <!-- Lista de prompts existentes -->
+          <h3 style="margin-top:1.4rem; font-size:1rem;">Prompts configurados</h3>
+          
+          {% if prompts %}
           <div style="margin-top:0.5rem; max-height:360px; overflow:auto;">
             <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
               <thead>
@@ -226,63 +237,165 @@
               </thead>
               <tbody>
                 {% for pr in prompts %}
-                  <tr style="border-bottom:1px solid rgba(30,41,59,0.6); vertical-align:top;">
-                    <td style="padding:0.35rem 0.3rem; color:#e2e8f0;">
-                      {{ pr.nombre }}
-                      <div style="font-size:0.75rem; color:#64748b;">
-                        {{ pr.created_at }}
-                      </div>
-                    </td>
-                    <td style="padding:0.35rem 0.3rem; color:#cbd5f5; font-size:0.85rem; white-space:pre-wrap;">
-                      {{ pr.contenido[:260] }}{% if pr.contenido|length > 260 %}...{% endif %}
-                    </td>
-                    <td style="padding:0.35rem 0.3rem;">
-                      {% if pr.is_active %}
-                        <span style="font-size:0.8rem; padding:0.15rem 0.55rem; border-radius:999px; background:rgba(34,197,94,0.15); color:#4ade80;">
-                          Activo
-                        </span>
-                      {% else %}
-                        <span style="font-size:0.8rem; padding:0.15rem 0.55rem; border-radius:999px; background:rgba(148,163,184,0.15); color:#94a3b8;">
-                          Inactivo
-                        </span>
-                      {% endif %}
-                    </td>
-                    <td style="padding:0.35rem 0.3rem;">
-                      <!-- Activar -->
-                      {% if not pr.is_active %}
-                        <form method="post" action="{{ url_for('activate_prompt', prompt_id=pr.id) }}" style="display:inline;">
-                          <button type="submit" class="btn-secondary" style="margin-bottom:0.3rem;">
-                            Usar este
-                          </button>
+                <tr style="border-bottom:1px solid rgba(30,41,59,0.6); vertical-align:top;">
+                  <td style="padding:0.35rem 0.3rem; color:#e2e8f0;">
+                    {{ pr.nombre }}
+                    <div style="font-size:0.75rem; color:#64748b;">
+                      {{ pr.created_at }}
+                    </div>
+                  </td>
+                  <td style="padding:0.35rem 0.3rem; color:#cbd5f5; font-size:0.85rem; white-space:pre-wrap;">
+                    {{ pr.contenido[:260] }}{% if pr.contenido|length > 260 %}...{% endif %}
+                  </td>
+                  <td style="padding:0.35rem 0.3rem;">
+                    {% if pr.is_active %}
+                    <span
+                      style="font-size:0.8rem; padding:0.15rem 0.55rem; border-radius:999px; background:rgba(34,197,94,0.15); color:#4ade80;">
+                      Activo
+                    </span>
+                    {% else %}
+                    <span
+                      style="font-size:0.8rem; padding:0.15rem 0.55rem; border-radius:999px; background:rgba(148,163,184,0.15); color:#94a3b8;">
+                      Inactivo
+                    </span>
+                    {% endif %}
+                  </td>
+                  <td style="padding:0.35rem 0.3rem;">
+                    <!-- Activar -->
+                    {% if not pr.is_active %}
+                    <form method="post" action="{{ url_for('activate_prompt', prompt_id=pr.id) }}" style="display:inline;">
+                      <button type="submit" class="btn-secondary" style="margin-bottom:0.3rem;">
+                        Usar este
+                      </button>
+                    </form>
+                    {% endif %}
+          
+                    <!-- Editar (form inline) -->
+                    <details style="margin-top:0.2rem;">
+                      <summary style="cursor:pointer; font-size:0.8rem; color:#a5b4fc;">Editar</summary>
+                      <div style="margin-top:0.4rem;">
+                        <form method="post" action="{{ url_for('update_prompt', prompt_id=pr.id) }}">
+                          <input type="text" name="nombre" value="{{ pr.nombre }}" required
+                            style="width:100%; padding:0.35rem 0.5rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.85rem; margin-bottom:0.35rem;">
+                          <textarea name="contenido" rows="5" required
+                            style="width:100%; padding:0.45rem 0.6rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.85rem; resize:vertical;">{{ pr.contenido }}</textarea>
+                          <div style="margin-top:0.4rem;">
+                            <button type="submit" class="btn-primary" style="font-size:0.8rem;">
+                              Guardar cambios
+                            </button>
+                          </div>
                         </form>
-                      {% endif %}
+                      </div>
+                    </details>
+          
+                    <!-- Eliminar -->
+                    <form method="post" action="{{ url_for('delete_prompt', prompt_id=pr.id) }}" class="form-delete-prompt"
+                      style="display:inline-block; margin-top:0.3rem;">
+                      <button type="submit"
+                        style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:0.4rem; padding:0.2rem 0.6rem; font-size:0.8rem; cursor:pointer;">
+                        Eliminar
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p style="margin-top:0.8rem; color:#94a3b8; font-size:0.9rem;">
+            Aún no tienes prompts definidos. Crea uno nuevo en el formulario superior.
+          </p>
+          {% endif %}
+          </section>
+          <!-- ASISTENTE DE VOZ -->
+          <section id="section-voice" class="card section">
+            <div class="voice-card-header">
+              <div class="voice-avatar">
+                <span>⚡</span>
+              </div>
+              <div class="voice-header-text">
+                <h2>UNL Asiste</h2>
+                <p><span class="status-dot"></span> Conectado y listo para ayudarte</p>
+              </div>
+              <div class="voice-header-actions">
+                <button class="icon-btn" title="Marcar como favorito">⭐</button>
+                <button class="icon-btn" title="Ver detalles">💬</button>
+              </div>
+            </div>
+          
+            <div class="voice-body">
+              <div id="chatMessages" class="chat-messages">
+                <!-- Mensaje inicial del asistente -->
+                <div class="msg msg-bot">
+                  <div class="msg-avatar">🤖</div>
+                  <div class="msg-bubble">
+                    <p>¡Hola! 👋 Soy tu asistente académico. ¿En qué puedo ayudarte hoy?</p>
+                  </div>
+                </div>
+              </div>
+          
+              <div class="chat-input-area">
+                <div class="chat-hint">Presiona Enter para enviar</div>
+                <div class="chat-input-row">
+                  <input id="chatInput" type="text" placeholder="Escribe tu mensaje aquí..." autocomplete="off" />
+                  <button id="chatSendBtn" class="chat-send-btn" title="Enviar">
+                    ➤
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+          
+        <!-- GESTIÓN DE USUARIOS (solo visible para admin) -->
+      <section id="section-users" class="card section">
+        <h2>Gestión de usuarios</h2>
+        <p style="margin-top:0.4rem; color:#94a3b8; font-size:0.85rem;">
+          Aquí puedes aprobar o rechazar las cuentas nuevas registradas en el sistema.
+        </p>
 
-                      <!-- Editar (form inline) -->
-                      <details style="margin-top:0.2rem;">
-                        <summary style="cursor:pointer; font-size:0.8rem; color:#a5b4fc;">Editar</summary>
-                        <div style="margin-top:0.4rem;">
-                          <form method="post" action="{{ url_for('update_prompt', prompt_id=pr.id) }}">
-                            <input type="text" name="nombre" value="{{ pr.nombre }}" required
-                                   style="width:100%; padding:0.35rem 0.5rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.85rem; margin-bottom:0.35rem;">
-                            <textarea name="contenido" rows="5" required
-                                      style="width:100%; padding:0.45rem 0.6rem; border-radius:0.5rem; border:1px solid rgba(148,163,184,0.4); background:#020617; color:#e5e7eb; font-size:0.85rem; resize:vertical;">{{ pr.contenido }}</textarea>
-                            <div style="margin-top:0.4rem;">
-                              <button type="submit" class="btn-primary" style="font-size:0.8rem;">
-                                Guardar cambios
-                              </button>
-                            </div>
-                          </form>
-                        </div>
-                      </details>
-
-                      <!-- Eliminar -->
+        {% if pending_users %}
+          <div style="margin-top:1rem; max-height:420px; overflow:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+              <thead>
+                <tr style="border-bottom:1px solid rgba(148,163,184,0.35);">
+                  <th style="text-align:left; padding:0.4rem 0.3rem;">Usuario</th>
+                  <th style="text-align:left; padding:0.4rem 0.3rem;">Email</th>
+                  <th style="text-align:left; padding:0.4rem 0.3rem; white-space:nowrap;">Fecha registro</th>
+                  <th style="text-align:left; padding:0.4rem 0.3rem;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in pending_users %}
+                  <tr style="border-bottom:1px solid rgba(30,41,59,0.6);">
+                    <td style="padding:0.35rem 0.3rem; color:#e2e8f0;">
+                      {{ u.username }}
+                    </td>
+                    <td style="padding:0.35rem 0.3rem; color:#cbd5f5;">
+                      {{ u.email }}
+                    </td>
+                    <td style="padding:0.35rem 0.3rem; color:#94a3b8; font-size:0.8rem; white-space:nowrap;">
+                      {{ u.created_at }}
+                    </td>
+                    <td style="padding:0.35rem 0.3rem;">
+                      <!-- Aceptar -->
                       <form method="post"
-                            action="{{ url_for('delete_prompt', prompt_id=pr.id) }}"
-                            class="form-delete-prompt"
-                            style="display:inline-block; margin-top:0.3rem;">
+                            action="{{ url_for('approve_user', user_id=u.id) }}"
+                            style="display:inline-block; margin-right:0.3rem;">
                         <button type="submit"
-                                style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:0.4rem; padding:0.2rem 0.6rem; font-size:0.8rem; cursor:pointer;">
-                          Eliminar
+                                style="background:#22c55e; color:#022c22; border:none; border-radius:0.4rem; padding:0.25rem 0.7rem; font-size:0.8rem; cursor:pointer;">
+                          Aceptar
+                        </button>
+                      </form>
+
+                      <!-- Rechazar -->
+                      <form method="post"
+                            action="{{ url_for('reject_user', user_id=u.id) }}"
+                            class="form-reject-user"
+                            style="display:inline-block;">
+                        <button type="submit"
+                                style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:0.4rem; padding:0.25rem 0.7rem; font-size:0.8rem; cursor:pointer;">
+                          Rechazar
                         </button>
                       </form>
                     </td>
@@ -292,11 +405,14 @@
             </table>
           </div>
         {% else %}
-          <p style="margin-top:0.8rem; color:#94a3b8; font-size:0.9rem;">
-            Aún no tienes prompts definidos. Crea uno nuevo en el formulario superior.
-          </p>
+          <div class="empty">
+            <div class="empty-icon">👥</div>
+            <p>No hay usuarios pendientes por aprobar.</p>
+            <p class="muted">Los nuevos registros aparecerán aquí para que los revises.</p>
+          </div>
         {% endif %}
       </section>
+
     </main>
   </div>
   <div id="toast" class="toast"></div>
@@ -373,18 +489,18 @@
         method: 'POST',
         body: formData
       })
-      .then(r => r.json())
-      .then(data => {
-        if (data.ok) {
-          addFileToList(data.filename);
-        } else {
-          alert(data.msg || 'Error al subir');
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        alert('Error de red');
-      });
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            addFileToList(data.filename);
+          } else {
+            alert(data.msg || 'Error al subir');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Error de red');
+        });
     }
 
     // conectar botones eliminar ya existentes
@@ -400,18 +516,18 @@
       fetch('/delete/' + encodeURIComponent(name), {
         method: 'DELETE'
       })
-      .then(r => r.json())
-      .then(data => {
-        if (data.ok) {
-          const li = btn.closest('li');
-          li.style.transition = "opacity 0.25s ease, transform 0.25s ease";
-          li.style.opacity = "0";
-          li.style.transform = "translateX(-6px)";
-          setTimeout(() => li.remove(), 250);
-        } else {
-          alert(data.msg || 'No se pudo eliminar');
-        }
-      });
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            const li = btn.closest('li');
+            li.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+            li.style.opacity = "0";
+            li.style.transform = "translateX(-6px)";
+            setTimeout(() => li.remove(), 250);
+          } else {
+            alert(data.msg || 'No se pudo eliminar');
+          }
+        });
     }
 
     function addFileToList(filename) {
@@ -449,7 +565,7 @@
     }
 
 
-        // Confirmar eliminación de prompt
+    // Confirmar eliminación de prompt
     document.querySelectorAll('.form-delete-prompt').forEach(form => {
       form.addEventListener('submit', (e) => {
         if (!confirm('¿Seguro que deseas eliminar este prompt?')) {
@@ -457,15 +573,121 @@
         }
       });
     });
-    function showToast(message, type = "ok") {
-  if (!toast) return;
-  toast.textContent = message;
-  toast.className = "toast " + type + " show";
-  setTimeout(() => {
-    toast.classList.remove("show");
-  }, 2500);
-}
 
-</script>
+  // Confirmar rechazo de usuario
+    document.querySelectorAll('.form-reject-user').forEach(form => {
+      form.addEventListener('submit', (e) => {
+        if (!confirm('¿Seguro que deseas rechazar / eliminar esta cuenta?')) {
+          e.preventDefault();
+        }
+      });
+    });
+
+    function showToast(message, type = "ok") {
+      if (!toast) return;
+      toast.textContent = message;
+      toast.className = "toast " + type + " show";
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2500);
+    }
+    // ====== CHAT ASISTENTE DE VOZ (usa /rag) ======
+    const chatInput = document.getElementById('chatInput');
+    const chatSendBtn = document.getElementById('chatSendBtn');
+    const chatMessages = document.getElementById('chatMessages');
+
+    function appendMessage(text, from = 'user') {
+      const msg = document.createElement('div');
+      msg.classList.add('msg');
+      msg.classList.add(from === 'user' ? 'msg-user' : 'msg-bot');
+
+      const avatar = document.createElement('div');
+      avatar.classList.add('msg-avatar');
+      avatar.textContent = from === 'user' ? '🙋‍♂️' : '🤖';
+
+      const bubble = document.createElement('div');
+      bubble.classList.add('msg-bubble');
+      bubble.innerHTML = `<p>${text}</p>`;
+
+      msg.appendChild(avatar);
+      msg.appendChild(bubble);
+
+      chatMessages.appendChild(msg);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function appendTyping() {
+      const msg = document.createElement('div');
+      msg.classList.add('msg', 'msg-bot');
+      msg.id = 'typing-indicator';
+
+      const avatar = document.createElement('div');
+      avatar.classList.add('msg-avatar');
+      avatar.textContent = '🤖';
+
+      const bubble = document.createElement('div');
+      bubble.classList.add('msg-bubble');
+      bubble.innerHTML = `
+        <div class="typing-dots">
+          <span></span><span></span><span></span>
+        </div>
+      `;
+
+      msg.appendChild(avatar);
+      msg.appendChild(bubble);
+      chatMessages.appendChild(msg);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function removeTyping() {
+      const t = document.getElementById('typing-indicator');
+      if (t) t.remove();
+    }
+
+    async function sendMessage() {
+      const text = (chatInput.value || '').trim();
+      if (!text) return;
+
+      appendMessage(text, 'user');
+      chatInput.value = '';
+
+      appendTyping();
+
+      try {
+        const resp = await fetch('/rag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pregunta: text })
+        });
+
+        const data = await resp.json();
+        removeTyping();
+
+        if (data.respuesta) {
+          appendMessage(data.respuesta, 'bot');
+        } else if (data.error) {
+          appendMessage('Ocurrió un error: ' + data.error, 'bot');
+        } else {
+          appendMessage('No se recibió respuesta del servidor.', 'bot');
+        }
+      } catch (err) {
+        console.error(err);
+        removeTyping();
+        appendMessage('Error de red al contactar con el servidor.', 'bot');
+      }
+    }
+
+    if (chatSendBtn && chatInput) {
+      chatSendBtn.addEventListener('click', sendMessage);
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+    }
+
+  </script>
 </body>
+
 </html>
