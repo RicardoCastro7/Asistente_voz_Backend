@@ -13,7 +13,7 @@ COLLECTION_NAME = "tic_unl_v1"
 GEMINI_MODEL = "gemini-2.5-flash-lite"
 
 logger = logging.getLogger(__name__)
-client = genai.Client(api_key="AIzaSyAyqTO8aVR0Z_OYbJ4EoBUlkZGXxCgnPIM")  # ya lo tienes
+client = genai.Client(api_key="")  # ya lo tienes
 
 def clean_response(text: str) -> str:
     text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
