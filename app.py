@@ -18,6 +18,7 @@ from pdf_service import (
 
 from rag_service import ask_gemini, debug_rag_search  # <== tu servicio RAG
 
+
 # ================== CONFIG LOGGING ==================
 def setup_logging():
     if not os.path.exists("logs"):
@@ -119,6 +120,10 @@ def require_login():
     # Si no hay usuario en sesión, mandar al login
     if not session.get("user_id") and request.endpoint not in {"login", "register"}:
         return redirect(url_for("login"))
+
+@app.route('/imagenes/<path:filename>')
+def imagenes(filename):
+    return send_from_directory('imagenes', filename)
 
 
 # ================== RUTAS AUTH ==================
@@ -245,12 +250,16 @@ def index():
     files = os.listdir(DATA_PATH)
     files = [f for f in files if f.lower().endswith(".pdf")]
     total_size = sum(os.path.getsize(os.path.join(DATA_PATH, f)) for f in files)
+
     username = session.get("username", "Usuario")
     role = session.get("role", "user")
-    es_admin = role == "admin"
+    es_admin = (role == "admin")
 
-    # ✅ OBTENER PREGUNTAS PARA "PREGUNTAS FRECUENTES"
+    # ========== PREGUNTAS (para FAQ y gráfico consultas) ==========
     preguntas = []
+    consultas_labels = []
+    consultas_values = []
+
     try:
         conn = get_db()
         cur = conn.cursor(dictionary=True)
@@ -261,8 +270,17 @@ def index():
             LIMIT 50
         """)
         preguntas = cur.fetchall()
-    except Exception as e:
-        app.logger.exception("Error al obtener preguntas desde la BD")
+
+        # agregamos conteo de preguntas por día
+        cur.execute("""
+            SELECT DATE(fecha_creacion) AS dia, COUNT(*) AS total
+            FROM preguntas
+            GROUP BY DATE(fecha_creacion)
+            ORDER BY dia ASC
+        """)
+        rows = cur.fetchall()
+        consultas_labels = [str(r["dia"]) for r in rows]
+        consultas_values = [r["total"] for r in rows]
     finally:
         try:
             cur.close()
@@ -273,7 +291,7 @@ def index():
         except Exception:
             pass
 
-    # Prompts (para Configuración)
+    # ========== PROMPTS ==========
     prompts = []
     try:
         conn = get_db()
@@ -294,12 +312,17 @@ def index():
         except Exception:
             pass
 
-    # 🧑‍💼 Usuarios pendientes (solo para admin)
+    # ========== USUARIOS (para admin, tarjeta + gráfico) ==========
     pending_users = []
+    pending_users_count = 0
+    active_users_count = 0
+
     if es_admin:
         try:
             conn = get_db()
             cur = conn.cursor(dictionary=True)
+
+            # lista de usuarios pendientes (para la vista de gestión)
             cur.execute("""
                 SELECT id, username, email, created_at, is_active, role
                 FROM users
@@ -307,6 +330,17 @@ def index():
                 ORDER BY created_at ASC
             """)
             pending_users = cur.fetchall()
+            pending_users_count = len(pending_users)
+
+            # cuántos usuarios activos hay
+            cur.execute("""
+                SELECT COUNT(*) AS c
+                FROM users
+                WHERE is_active = 1
+            """)
+            row = cur.fetchone()
+            active_users_count = row["c"] if row else 0
+
         finally:
             try:
                 cur.close()
@@ -317,16 +351,34 @@ def index():
             except Exception:
                 pass
 
+    # datos para el gráfico de usuarios
+    users_labels = ["Activos", "Pendientes"]
+    users_values = [active_users_count, pending_users_count]
+
     return render_template(
         "main.html",
         files=files,
         total_size=total_size,
         username=username,
+
+        # FAQ / consultas
         preguntas=preguntas,
-        prompts=prompts,        # Configuración
-        es_admin=es_admin,      # para que el template sepa si mostrar cosas
-        pending_users=pending_users  # lista de usuarios por aprobar
+        consultas_labels=consultas_labels,
+        consultas_values=consultas_values,
+
+        # prompts
+        prompts=prompts,
+
+        # administración
+        es_admin=es_admin,
+        pending_users=pending_users,
+        pending_users_count=pending_users_count,
+
+        # gráfico de usuarios
+        users_labels=users_labels,
+        users_values=users_values,
     )
+
 
 
 @app.route("/upload", methods=["POST"])
